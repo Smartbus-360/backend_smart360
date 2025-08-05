@@ -65,6 +65,20 @@ export const configureSocket = (io) => {
                     speed,
                     placeName
                 });
+                // ✅ Also notify admin namespace
+adminNotificationNamespace.emit('locationUpdate', {
+    driverInfo: { 
+        id: numericDriverId, 
+        name: driverInfo.name, 
+        phone: driverInfo.phone, 
+        busNumber: driverInfo.vehicleAssigned || 'N/A' 
+    },
+    latitude,
+    longitude,
+    speed,
+    placeName
+});
+
             });
         });
 
