@@ -49,6 +49,7 @@ export const configureSocket = (io) => {
             if (!numericDriverId || latitude === undefined || longitude === undefined) {
                 return console.error(`⚠️ Invalid or missing location data from driver ${driverId}`);
             }
+            console.log(`📡 Speed received from driver ${numericDriverId}:`, speed);
 
 
             //console.log(`Received locationUpdate for driver ${numericDriverId}: lat=${latitude}, lon=${longitude}`);
@@ -66,7 +67,7 @@ export const configureSocket = (io) => {
                     placeName
                 });
                 // ✅ Also notify admin namespace
-adminNotificationNamespace.emit('locationUpdate', {
+adminNotificationNamespace.to(`driver_${numericDriverId}`).emit('locationUpdate', {
     driverInfo: { 
         id: numericDriverId, 
         name: driverInfo.name, 
@@ -135,8 +136,33 @@ adminNotificationNamespace.emit('locationUpdate', {
     adminNotificationNamespace.on('connection', (socket) => {
         console.log('✅ Admin notification channel connected');
 
+        const subscribedDrivers = new Set();
+
+        socket.on('subscribeToDriver', (data) => {
+            const driverId = typeof data === 'object' ? data.driverId : data;
+            const numericDriverId = parseInt(driverId, 10);
+            if (!isNaN(numericDriverId)) {
+                socket.join(`driver_${numericDriverId}`);
+                subscribedDrivers.add(numericDriverId);
+                console.log(`Admin subscribed to driver_${numericDriverId}`);
+            }
+        });
+
+        socket.on('unsubscribeFromDriver', (data) => {
+            const driverId = typeof data === 'object' ? data.driverId : data;
+            const numericDriverId = parseInt(driverId, 10);
+            if (subscribedDrivers.has(numericDriverId)) {
+                socket.leave(`driver_${numericDriverId}`);
+                subscribedDrivers.delete(numericDriverId);
+                console.log(`Admin unsubscribed from driver_${numericDriverId}`);
+            }
+        });
+
         socket.on('disconnect', () => {
             console.log('❌ Admin notification channel disconnected');
+            subscribedDrivers.forEach(driverId => {
+                socket.leave(`driver_${driverId}`);
+            });
         });
     });
 };
